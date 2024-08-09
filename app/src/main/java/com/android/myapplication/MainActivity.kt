@@ -5,11 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -20,9 +15,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +29,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.sharp.Menu
 import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -42,15 +40,18 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,7 +62,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.android.myapplication.ui.theme.MyApplicationTheme
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -289,7 +289,7 @@ fun MyApp() {
                     .padding(it)
             ) {
                 composable(route = "a") {
-                    Listing(chatList)
+                    ChatScreen(chatList)
                 }
                 composable(route = "b") {
                     Greeting("Bharath")
@@ -305,29 +305,6 @@ fun MyApp() {
     }
 
     selectedMenu.intValue = 1
-
-    LaunchedEffect(key1 = "Chat") {
-        val uniqueTexts = mutableSetOf<String>()
-        val randomTexts = listOf(
-            "How are you doing?",
-            "What's new?",
-            "Nice to meet you!",
-            "How's your day?",
-            "Good to see you!",
-            "Take care!",
-            "See you later!",
-            "Have a great day!"
-        )
-
-        while (uniqueTexts.size < randomTexts.size) {
-            val newText = randomTexts.random()
-            if (uniqueTexts.add(newText)) {
-                chatList.add(newText)
-                delay(1000L)
-            }
-        }
-    }
-
 }
 
 @Composable
@@ -344,45 +321,86 @@ fun Greeting(name: String) {
     }
 }
 
+
 @Composable
-fun Listing(chatList: MutableList<String>) {
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(chatList.size) {
-        // Smoothly scroll to the last item in the list whenever a new item is added
-        listState.animateScrollToItem(
-            index = chatList.size - 1
-        )
-    }
-
-    LazyColumn(
-        state = listState,
+fun ChatItem(message: String, index: Int) {
+    val odd = index % 2 == 0
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
+            .padding(start = if(odd) 0.dp else 10.dp, end = if(odd.not()) 0.dp else 10.dp, top = 5.dp)
     ) {
-        items(chatList.size, key = { it.hashCode() }) { message ->
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn() + slideInHorizontally(initialOffsetX = { it / 2 }),
-                exit = fadeOut() + slideOutHorizontally(targetOffsetX = { it / 2 })
-            ) {
-                Spacer(modifier = Modifier.padding(2.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Spacer(modifier = Modifier.weight(1f)) // Pushes the Box to the end
-                    Box(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(5.dp))
-                            .padding(5.dp),
-                    ) {
-                        Text(
-                            text = chatList[message],
-                            textAlign = TextAlign.End,
-                            modifier = Modifier.padding(10.dp)
-                        )
+        if (odd) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+        Box(
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.primary,
+                    RoundedCornerShape(5.dp)
+                )
+                .padding(5.dp),
+        ) {
+            Text(
+                text = message,
+                textAlign = TextAlign.End,
+                modifier = Modifier.padding(10.dp),
+                color = Color.White
+            )
+        }
+        if (odd.not()) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+
+@Composable
+fun ChatScreen(messages: MutableList<String>) {
+    var text by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Chat messages list
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            itemsIndexed(messages, itemContent = { index: Int, message: String ->
+                ChatItem(message, index)
+            })
+        }
+
+        // Input field and send button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Type a message") }
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Button(onClick = {
+                if (text.isNotBlank()) {
+                    messages.add(text)  // Add the new message to the chat list
+                    text = ""  // Clear the input field after sending the message
+                    coroutineScope.launch {
+                        listState.animateScrollToItem(messages.size - 1)
                     }
                 }
+            }) {
+                Text("Send")
             }
         }
     }
 }
+
