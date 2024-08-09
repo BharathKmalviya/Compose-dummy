@@ -3,6 +3,8 @@
 ## Overview
 This project is developed using Kotlin and Java, and it is built with Gradle.
 
+https://github.com/user-attachments/assets/0c22b6bc-e7cf-40d9-b05e-c68975c37bba
+
 ## Features
 - Feature 1
 - Feature 2
